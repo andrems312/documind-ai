@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* Tema escuro ativado pela classe `.dark` no <html> (next-themes). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Tokens de design do DocuMind AI ---------- */
+:root {
+  --bg: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #eff1f6;
+  --surface-3: #e6e9f0;
+  --border: #e1e5ee;
+  --border-strong: #c9cfdc;
+  --fg: #0f1320;
+  --fg-muted: #5b6477;
+  --fg-subtle: #8b93a7;
+  --accent: #6c5ce7;
+  --accent-hover: #5b4bd6;
+  --accent-fg: #ffffff;
+  --accent-soft: #ece9fd;
+  --cite: #0fa9a0;
+  --cite-soft: #dcf6f3;
+  --success: #2f9e63;
+  --warning: #e0952b;
+  --danger: #df3f46;
+  --danger-soft: #fdecec;
+  --ring: #6c5ce7;
+  --shadow: 0 1px 2px rgb(15 19 32 / 0.06), 0 8px 24px -12px rgb(15 19 32 / 0.12);
+}
+
+.dark {
+  --bg: #0b0e14;
+  --surface: #121620;
+  --surface-2: #1a1f2b;
+  --surface-3: #222838;
+  --border: #242a3a;
+  --border-strong: #343b4f;
+  --fg: #e8eaf0;
+  --fg-muted: #9aa3b8;
+  --fg-subtle: #6b7489;
+  --accent: #7c6cf6;
+  --accent-hover: #8e80f8;
+  --accent-fg: #ffffff;
+  --accent-soft: #221f45;
+  --cite: #34d5c8;
+  --cite-soft: #0f2a2c;
+  --success: #3fbf78;
+  --warning: #f2b45a;
+  --danger: #f0565c;
+  --danger-soft: #3a1a1e;
+  --ring: #8e80f8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -16px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-cite: var(--cite);
+  --color-cite-soft: var(--cite-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-card: var(--shadow);
+
+  --animate-fade-in: fade-in 180ms ease-out both;
+  --animate-rise: rise 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 30%, transparent);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .glow-accent {
+    box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent),
+      0 0 40px -10px color-mix(in oklab, var(--accent) 60%, transparent);
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 70%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 70%, transparent) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
