@@ -10,10 +10,13 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.ai.openrouter import OpenRouterClient
+from app.ai.providers import ChatProvider, EmbeddingProvider
+from app.ai.rag import RagService
 from app.api.v1 import router as api_v1_router
 from app.core.config import Settings, get_settings
 from app.core.exceptions import register_exception_handlers
@@ -21,8 +24,11 @@ from app.core.logging import configure_logging, get_logger
 from app.core.rate_limit import limiter
 from app.core.security import JWTVerifier
 from app.db.session import create_engine, create_session_factory
+from app.processing.jobs import JobRunner
+from app.processing.pipeline import PipelineContext
+from app.storage.base import StorageBackend, build_storage
 
-API_VERSION = "0.1.0"
+API_VERSION = "0.2.0"
 log = get_logger("documind")
 
 
@@ -32,16 +38,33 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     log.info(
         "startup",
         env=settings.app_env,
+        storage=settings.storage_backend,
         llm_model=settings.llm_model,
         embedding_model=settings.embedding_model,
         embedding_dim=settings.embedding_dim,
+        openrouter_configured=bool(settings.openrouter_api_key),
     )
+    try:
+        await app.state.job_runner.resume_pending()
+    except Exception as exc:  # banco indisponível no startup não deve impedir a API de subir
+        log.error("jobs_resume_failed", error=str(exc))
     yield
+    await app.state.job_runner.aclose()
+    await app.state.storage.aclose()
+    for resource in app.state.closeables:
+        await resource.aclose()
     await app.state.engine.dispose()
     log.info("shutdown")
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    embedder: EmbeddingProvider | None = None,
+    chat: ChatProvider | None = None,
+    storage: StorageBackend | None = None,
+) -> FastAPI:
+    """Cria a aplicação. Provedores podem ser injetados (testes, outros gateways)."""
     settings = settings or get_settings()
     configure_logging(settings)
 
@@ -60,10 +83,47 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Estado compartilhado (criado aqui, não no lifespan, para que os testes não dependam dele).
     app.state.settings = settings
-    app.state.engine = create_engine(settings)
+    app.state.engine = create_engine(str(settings.database_url))
     app.state.session_factory = create_session_factory(app.state.engine)
     app.state.jwt_verifier = JWTVerifier(settings)
     app.state.limiter = limiter
+    app.state.closeables = []
+
+    if embedder is None or chat is None:
+        openrouter = OpenRouterClient(
+            api_key=settings.openrouter_api_key,
+            base_url=str(settings.openrouter_base_url),
+            chat_model=settings.llm_model,
+            embedding_model=settings.embedding_model,
+            embedding_dim=settings.embedding_dim,
+            app_url=settings.app_public_url,
+            app_name=settings.app_name,
+            timeout=settings.http_timeout_seconds,
+        )
+        app.state.closeables.append(openrouter)
+        embedder = embedder or openrouter
+        chat = chat or openrouter
+
+    app.state.storage = storage or build_storage(settings)
+    app.state.embedder = embedder
+    app.state.chat = chat
+    pipeline = PipelineContext(
+        session_factory=app.state.session_factory,
+        storage=app.state.storage,
+        embedder=embedder,
+        settings=settings,
+    )
+    app.state.job_runner = JobRunner(
+        pipeline,
+        concurrency=settings.worker_concurrency,
+        max_attempts=settings.job_max_attempts,
+    )
+    app.state.rag = RagService(
+        settings=settings,
+        session_factory=app.state.session_factory,
+        embedder=embedder,
+        chat=chat,
+    )
 
     app.add_middleware(
         CORSMiddleware,
@@ -74,7 +134,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         expose_headers=["X-Request-ID"],
     )
     app.add_middleware(SlowAPIMiddleware)
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+    @app.exception_handler(RateLimitExceeded)
+    async def _rate_limited(_: Request, exc: RateLimitExceeded) -> JSONResponse:
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": "rate_limited",
+                    "message": "Muitas requisições em pouco tempo. Aguarde um instante.",
+                    "details": {"limit": str(exc.detail)},
+                }
+            },
+        )
 
     @app.middleware("http")
     async def request_context(

@@ -4,9 +4,26 @@ Plataforma SaaS para conversar com documentos PDF usando **RAG (Retrieval-Augmen
 as respostas são geradas apenas a partir de trechos recuperados dos seus arquivos e vêm com a
 página de origem citada.
 
-> Status: **FASE 2 (Fundação) concluída** — autenticação, API, schema do banco e design system.
-> Próxima: FASE 3 (upload, extração, embeddings, pgvector e chat com citações).
+> Status: **FASE 3 (núcleo) concluída** — upload, extração com PyMuPDF, chunking, embeddings,
+> pgvector, busca híbrida, RAG com streaming e citações por página.
+> Próxima: FASE 4 (dashboard de uso, pastas, resumos, comparação, busca semântica, exportação).
 > Veja o roadmap completo em [docs/FASE1-PLANEJAMENTO.md](docs/FASE1-PLANEJAMENTO.md).
+
+## Como funciona
+
+```
+PDF ─► validação (assinatura, senha, limites) ─► Storage privado
+    ─► job em segundo plano: texto por página (PyMuPDF, sem cabeçalhos/rodapés repetidos)
+    ─► chunks de ~500 tokens sem cruzar páginas ─► embeddings (OpenRouter) ─► pgvector (HNSW)
+
+Pergunta ─► reescrita com o histórico ─► busca vetorial + full-text PT-BR ─► fusão RRF
+        ─► sem trecho relevante? responde "não encontrei" sem chamar o LLM
+        ─► contexto numerado ─► LLM em streaming (SSE) ─► validação das citações [n]
+        ─► resposta + fontes (documento, página, trecho) salvas no histórico
+```
+
+Detalhes e decisões em [docs/ARQUITETURA.md](docs/ARQUITETURA.md); contrato da API e dos eventos
+de streaming em [docs/API.md](docs/API.md).
 
 ## Stack
 
@@ -64,6 +81,20 @@ pnpm dev
 cd backend && uv run pytest -q && uv run ruff check . && uv run mypy app
 cd frontend && pnpm typecheck && pnpm test && pnpm build
 ```
+
+Os testes de integração do backend (pgvector, pipeline, RAG, SSE, isolamento entre usuários) rodam
+quando `TEST_DATABASE_URL` aponta para um Postgres com a extensão `vector`. **O schema do banco
+indicado é apagado e recriado**; por segurança, os testes se recusam a rodar se o nome do banco
+não contiver `test`:
+
+```bash
+# com Docker
+docker run -d --name documind-test-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=documind_test -p 5433:5432 pgvector/pgvector:pg16
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/documind_test uv run pytest -q
+```
+
+Sem Docker (inclusive no Windows), o pacote `pgserver` sobe um Postgres com pgvector embutido; veja
+[docs/ARQUITETURA.md](docs/ARQUITETURA.md) (ADR-014).
 
 ## Docker (opcional)
 

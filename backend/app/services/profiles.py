@@ -12,19 +12,25 @@ from app.schemas.profile import ProfileUpdate
 
 
 async def ensure_profile(db: AsyncSession, user: AuthUser) -> Profile:
-    """Garante que exista um perfil para o usuário autenticado (upsert idempotente)."""
-    stmt = (
-        insert(Profile)
-        .values(id=user.id, email=user.email, full_name=user.full_name, avatar_url=user.avatar_url)
-        .on_conflict_do_update(
-            index_elements=[Profile.id],
-            set_={"email": user.email},
+    """Garante que exista um perfil para o usuário autenticado.
+
+    Caminho comum (perfil existente) é só leitura; a inserção é idempotente e segura contra
+    requisições concorrentes do mesmo usuário (ON CONFLICT DO NOTHING).
+    """
+    profile = await db.scalar(select(Profile).where(Profile.id == user.id))
+    if profile is None:
+        await db.execute(
+            insert(Profile)
+            .values(
+                id=user.id, email=user.email, full_name=user.full_name, avatar_url=user.avatar_url
+            )
+            .on_conflict_do_nothing(index_elements=[Profile.id])
         )
-        .returning(Profile)
-    )
-    result = await db.execute(stmt)
-    profile = result.scalar_one()
-    await db.flush()
+        profile = await db.scalar(select(Profile).where(Profile.id == user.id))
+        assert profile is not None
+    elif user.email and profile.email != user.email:
+        profile.email = user.email
+        await db.flush()
     return profile
 
 

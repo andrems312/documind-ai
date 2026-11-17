@@ -39,9 +39,13 @@ e reprocessamento dos documentos.
 
 ## ADR-005 — Supabase Storage para PDFs (adapter trocável)
 
-**Decisão:** arquivos em bucket privado, acessados pelo backend com a service role e entregues ao
-usuário por URL assinada de curta duração. Interface `StorageBackend` (FASE 3) com implementação
-local em disco para testes.
+**Decisão:** arquivos em bucket privado, acessados só pelo backend com a service role, atrás da
+interface `StorageBackend` (`app/storage`), com implementação Supabase e uma local em disco.
+**Revisão na FASE 3:** o download do PDF original passa pelo backend (`GET /documents/{id}/file`)
+em vez de URL assinada. Motivo: a posse é verificada em toda leitura, nada do bucket é exposto e o
+mesmo código funciona com o armazenamento local. URLs assinadas ficam como otimização futura se o
+tráfego de arquivos crescer.
+**Caminhos** seguem `<user_id>/<document_id>.pdf` e são validados por regex contra path traversal.
 
 ## ADR-006 — OpenRouter para chat e embeddings via httpx
 
@@ -62,6 +66,42 @@ serviços.
 Fusion; score mínimo antes de chamar o LLM; citações validadas contra os trechos enviados.
 **Motivo:** termos exatos (cláusulas, siglas, números) se beneficiam do full-text; a abstenção evita
 respostas inventadas.
+**Implementação (FASE 3, `app/ai/retrieval.py` e `app/ai/rag.py`):**
+- Um trecho só entra no contexto se a similaridade vetorial for ≥ `RAG_MIN_SIMILARITY` **ou** se
+  todos os termos da busca aparecerem nele (full-text). No máximo 2 trechos por página, para
+  diversificar as fontes; o total respeita `RAG_CONTEXT_TOKENS`.
+- Sem trechos aprovados, a resposta é a frase padrão de ausência e o LLM não é chamado.
+- Em conversas com histórico, a pergunta é reescrita como autônoma (só para a busca); o histórico
+  vai inteiro para o modelo.
+- O prompt numera os trechos (`[n] Documento "X", página Y`), exige citação por afirmação, manda
+  tratar o conteúdo dos trechos como dados (defesa contra prompt injection nos PDFs) e define a
+  frase exata de abstenção.
+- Depois do streaming, `app/ai/guards.py` remove citações inexistentes, normaliza `[1, 2]` para
+  `[1][2]` e só persiste como fonte o que foi efetivamente citado.
+
+## ADR-013 — Provedores de IA atrás de protocolos
+
+**Decisão:** o pipeline e o RAG dependem de `EmbeddingProvider` e `ChatProvider`
+(`app/ai/providers.py`); `OpenRouterClient` é a implementação real e `create_app()` aceita outras.
+**Motivo:** trocar de gateway sem mexer no núcleo e testar o fluxo inteiro sem rede.
+**Consequência:** os testes usam provedores determinísticos que ficam só em `tests/fakes.py` e
+nunca são usados pela aplicação.
+
+## ADR-014 — Testes de integração contra Postgres real
+
+**Decisão:** além dos testes unitários, a suíte roda contra um Postgres com pgvector quando
+`TEST_DATABASE_URL` existe: recria o schema, aplica as migrações do Alembic e exercita upload,
+pipeline, SQL vetorial, full-text, SSE, citações e isolamento entre usuários.
+**Motivo:** a parte mais arriscada (SQL vetorial, `tsvector`, cascatas, jobs) não se testa com mocks.
+**Como rodar localmente sem Docker:** o pacote `pgserver` (Postgres + pgvector embutidos via pip)
+funciona inclusive no Windows; no CI, o serviço `pgvector/pgvector:pg16`.
+
+## ADR-015 — Resposta em SSE com contrato de eventos explícito
+
+**Decisão:** `status` → `token`* → `done` | `error`, documentado em [API.md](API.md). O evento
+`done` carrega a mensagem persistida e validada, que substitui o texto do stream no cliente.
+**Motivo:** o usuário vê a resposta nascendo, mas o que fica salvo e exibido no fim é a versão
+saneada. O gerador usa sessões de banco próprias, independentes do ciclo da requisição.
 
 ## ADR-009 — Isolamento por usuário em três camadas
 

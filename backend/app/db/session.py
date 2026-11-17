@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -16,12 +17,20 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from app.core.config import Settings
+
+def to_asyncpg_url(url: str) -> str:
+    """Converte uma URL do Postgres (formato do Supabase) para o driver asyncpg."""
+    if url.startswith("postgresql+asyncpg://"):
+        return url
+    for prefix in ("postgresql://", "postgres://"):
+        if url.startswith(prefix):
+            return "postgresql+asyncpg://" + url[len(prefix) :]
+    return url
 
 
-def create_engine(settings: Settings) -> AsyncEngine:
+def create_engine(database_url: str) -> AsyncEngine:
     return create_async_engine(
-        settings.sqlalchemy_database_url,
+        to_asyncpg_url(database_url),
         echo=False,
         pool_pre_ping=True,
         pool_size=5,
@@ -35,18 +44,20 @@ def create_engine(settings: Settings) -> AsyncEngine:
     )
 
 
-def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+SessionFactory = async_sessionmaker[AsyncSession]
+
+
+def create_session_factory(engine: AsyncEngine) -> SessionFactory:
     return async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
 
 
-async def session_scope(
-    factory: async_sessionmaker[AsyncSession],
-) -> AsyncIterator[AsyncSession]:
-    """Abre uma sessão, faz commit ao final ou rollback em caso de erro."""
+@asynccontextmanager
+async def session_scope(factory: SessionFactory) -> AsyncIterator[AsyncSession]:
+    """Sessão fora do ciclo de requisição (jobs, streaming): commit no fim, rollback no erro."""
     async with factory() as session:
         try:
             yield session
             await session.commit()
-        except Exception:
+        except BaseException:
             await session.rollback()
             raise

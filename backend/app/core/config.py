@@ -7,10 +7,10 @@ from __future__ import annotations
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AnyHttpUrl, Field, PostgresDsn, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 ROOT_DIR = BACKEND_DIR.parent
@@ -31,7 +31,10 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     log_level: str = "INFO"
     log_json: bool = False
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+    # NoDecode: aceita "http://a.com,http://b.com" (formato do .env.example) em vez de exigir JSON.
+    cors_origins: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["http://localhost:3000"]
+    )
 
     # Banco de dados
     database_url: PostgresDsn
@@ -44,12 +47,34 @@ class Settings(BaseSettings):
     supabase_storage_bucket: str = "documents"
     jwt_audience: str = "authenticated"
 
+    # Armazenamento de arquivos: "supabase" (produção) ou "local" (disco, dev/testes)
+    storage_backend: Literal["supabase", "local"] = "local"
+    local_storage_dir: str = str(BACKEND_DIR / ".uploads")
+
     # OpenRouter / IA
     openrouter_api_key: str = ""
     openrouter_base_url: AnyHttpUrl = AnyHttpUrl("https://openrouter.ai/api/v1")
+    app_public_url: str = "http://localhost:3000"  # enviado ao OpenRouter como HTTP-Referer
     llm_model: str = "openai/gpt-4.1-mini"
+    llm_temperature: float = Field(default=0.1, ge=0, le=1)
+    llm_max_tokens: int = 1200
     embedding_model: str = "openai/text-embedding-3-small"
     embedding_dim: int = 1536
+    embedding_batch_size: int = Field(default=64, ge=1, le=256)
+    http_timeout_seconds: float = 60.0
+
+    # Chunking e recuperação (RAG)
+    chunk_tokens: int = Field(default=500, ge=100, le=2000)
+    chunk_overlap_tokens: int = Field(default=75, ge=0, le=500)
+    rag_candidates: int = Field(default=20, ge=4, le=100)  # por estratégia (vetorial e full-text)
+    rag_top_k: int = Field(default=8, ge=1, le=30)
+    rag_min_similarity: float = Field(default=0.25, ge=0, le=1)
+    rag_context_tokens: int = Field(default=6000, ge=500)
+    rag_history_messages: int = Field(default=6, ge=0, le=30)
+
+    # Processamento em segundo plano
+    worker_concurrency: int = Field(default=2, ge=1, le=16)
+    job_max_attempts: int = Field(default=3, ge=1, le=10)
 
     # Limites
     max_upload_mb: int = 25
@@ -68,13 +93,10 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_database_url(self) -> str:
-        """Converte a URL do Postgres para o driver asyncpg, aceitando o formato do Supabase."""
-        url = str(self.database_url)
-        if url.startswith("postgresql+asyncpg://"):
-            return url
-        return url.replace("postgresql://", "postgresql+asyncpg://", 1).replace(
-            "postgres://", "postgresql+asyncpg://", 1
-        )
+        """URL do Postgres no formato do driver asyncpg (aceita o formato do Supabase)."""
+        from app.db.session import to_asyncpg_url
+
+        return to_asyncpg_url(str(self.database_url))
 
     @property
     def max_upload_bytes(self) -> int:

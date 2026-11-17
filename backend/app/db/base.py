@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import datetime
 
@@ -10,9 +9,11 @@ from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-# Dimensão do vetor de embedding. Lida do ambiente (mesma fonte usada pela migração) para que
-# o modelo ORM e o schema físico fiquem sempre alinhados. Mudar exige nova migração.
-EMBEDDING_DIM = int(os.environ.get("EMBEDDING_DIM", "1536"))
+from app.core.config import get_settings
+
+# Dimensão do vetor de embedding, lida das Settings (ambiente + .env), a mesma fonte usada pela
+# migração, para que o modelo ORM e o schema físico fiquem alinhados. Mudar exige nova migração.
+EMBEDDING_DIM = get_settings().embedding_dim
 
 NAMING_CONVENTION = {
     "ix": "ix_%(column_0_label)s",

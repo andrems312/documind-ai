@@ -76,11 +76,19 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+        # Só campo, mensagem e tipo: `ctx` pode conter objetos não serializáveis e `input`
+        # ecoaria de volta o payload enviado (às vezes grande ou sensível).
+        errors: list[dict[str, Any]] = [
+            {
+                "loc": [str(part) for part in err.get("loc", ())],
+                "msg": str(err.get("msg", "")).removeprefix("Value error, "),
+                "type": str(err.get("type", "")),
+            }
+            for err in exc.errors()
+        ]
+        message = str(errors[0]["msg"]) if len(errors) == 1 else "Dados inválidos na requisição."
         return _error_response(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "validation_error",
-            "Dados inválidos na requisição.",
-            exc.errors(),
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "validation_error", message, errors
         )
 
     @app.exception_handler(StarletteHTTPException)

@@ -10,11 +10,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from app.ai.rag import RagService
 from app.core.config import Settings
 from app.core.exceptions import UnauthorizedError
 from app.core.security import AuthUser, JWTVerifier
 from app.db.models import Profile
+from app.processing.jobs import JobRunner
 from app.services.profiles import ensure_profile
+from app.storage.base import StorageBackend
 
 _bearer = HTTPBearer(auto_error=False, description="Token de acesso do Supabase Auth")
 
@@ -54,7 +57,22 @@ async def get_current_profile(
     return await ensure_profile(db, user)
 
 
+def get_storage(request: Request) -> StorageBackend:
+    return request.app.state.storage  # type: ignore[no-any-return]
+
+
+def get_job_runner(request: Request) -> JobRunner:
+    return request.app.state.job_runner  # type: ignore[no-any-return]
+
+
+def get_rag(request: Request) -> RagService:
+    return request.app.state.rag  # type: ignore[no-any-return]
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
 CurrentProfile = Annotated[Profile, Depends(get_current_profile)]
+StorageDep = Annotated[StorageBackend, Depends(get_storage)]
+JobRunnerDep = Annotated[JobRunner, Depends(get_job_runner)]
+RagDep = Annotated[RagService, Depends(get_rag)]

@@ -6,7 +6,6 @@ com banco real roda apenas quando TEST_DATABASE_URL está definida.
 
 from __future__ import annotations
 
-import os
 import uuid
 from datetime import UTC, datetime
 
@@ -66,14 +65,13 @@ async def test_me_returns_profile_from_token(client, no_db) -> None:
     assert body["full_name"] == "Ana Souza"
 
 
-@pytest.mark.skipif(not os.environ.get("TEST_DATABASE_URL"), reason="TEST_DATABASE_URL ausente")
-async def test_me_roundtrip_with_real_database(settings) -> None:
+async def test_me_roundtrip_with_real_database(settings, migrated_db_url) -> None:
     """Cria o perfil no primeiro acesso, atualiza o nome e lê de volta."""
     from httpx import ASGITransport, AsyncClient
 
     from app.main import create_app
 
-    real_settings = settings.model_copy(update={"database_url": os.environ["TEST_DATABASE_URL"]})
+    real_settings = settings.model_copy(update={"database_url": migrated_db_url})
     app = create_app(real_settings)
     uid, token = make_token(uuid.uuid4(), email="teste-db@example.com")
     headers = {"Authorization": f"Bearer {token}"}
