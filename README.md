@@ -57,6 +57,8 @@ docs/       Planejamento, arquitetura e ADRs
    configurar as URLs de redirecionamento e criar o bucket de arquivos.
 2. **Backend**: copie `.env.example` para `.env` na raiz e preencha.
 3. **Frontend**: copie `frontend/.env.local.example` para `frontend/.env.local` e preencha.
+4. **Verifique**: `cd backend && uv run alembic upgrade head && uv run python scripts/check_setup.py`
+   testa cada serviço real e aponta exatamente o que corrigir.
 
 ## Executar em desenvolvimento
 

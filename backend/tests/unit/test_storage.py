@@ -5,7 +5,7 @@ import pytest
 
 from app.storage.base import StorageError, object_path
 from app.storage.local import LocalStorage
-from app.storage.supabase import SupabaseStorage
+from app.storage.supabase import SupabaseStorage, supabase_server_headers
 
 USER = uuid.UUID("11111111-1111-1111-1111-111111111111")
 DOC = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -58,6 +58,38 @@ async def test_supabase_storage_requests() -> None:
     assert requests[0].headers["authorization"] == "Bearer service-key"
     assert requests[0].headers["apikey"] == "service-key"
     assert requests[0].headers["content-type"] == "application/pdf"
+
+
+def test_new_secret_key_is_sent_only_as_apikey() -> None:
+    headers = supabase_server_headers("sb_secret_abc123")
+    assert headers == {"apikey": "sb_secret_abc123"}  # não é JWT: sem Authorization
+
+
+def test_legacy_service_role_key_keeps_bearer_header() -> None:
+    headers = supabase_server_headers("eyJhbGciOi.legacy.jwt")
+    assert headers == {
+        "apikey": "eyJhbGciOi.legacy.jwt",
+        "Authorization": "Bearer eyJhbGciOi.legacy.jwt",
+    }
+
+
+async def test_supabase_storage_with_new_secret_key_sends_no_authorization_header() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json={})
+
+    storage = SupabaseStorage(
+        base_url="https://ref.supabase.co",
+        service_role_key="sb_secret_abc123",
+        bucket="documents",
+        transport=httpx.MockTransport(handler),
+    )
+    await storage.put(object_path(USER, DOC), b"%PDF-data")
+    await storage.aclose()
+    assert seen[0].headers["apikey"] == "sb_secret_abc123"
+    assert "authorization" not in seen[0].headers
 
 
 async def test_supabase_storage_error_is_wrapped() -> None:

@@ -16,8 +16,8 @@ Em **Project Settings → API**:
 | Variável | Onde |
 |---|---|
 | `SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
-| `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project API keys → `anon` `public` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Project API keys → `service_role` (**só no backend**) |
+| `SUPABASE_ANON_KEY` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Project Settings → API Keys → **Publishable key** (`sb_publishable_...`); em projetos antigos, a `anon` legada |
+| `SUPABASE_SERVICE_ROLE_KEY` | Project Settings → API Keys → **Secret keys** → `default` (`sb_secret_...`), botão de copiar; em projetos antigos, a `service_role` legada. **Só no backend** |
 | `SUPABASE_JWT_SECRET` (opcional) | JWT Settings → JWT Secret. Se o projeto usa chaves assimétricas, deixe vazio: o backend valida pelo JWKS |
 
 Em **Project Settings → Database → Connection string**:
@@ -52,3 +52,16 @@ uv run alembic upgrade head
 ```
 
 A migração ativa a extensão `vector`, cria as tabelas, índices (HNSW + GIN) e políticas RLS.
+
+## 6. Verificar tudo
+
+```bash
+cd backend
+uv run python scripts/check_setup.py
+```
+
+O verificador testa, contra os serviços reais e sem imprimir segredos: variáveis do backend e do
+frontend, conexão com o banco, pgvector, migrações, dimensão do vetor, Supabase Auth, validação de
+JWT, bucket privado (com envio, leitura e exclusão de um arquivo de teste) e OpenRouter (chave, um
+embedding e uma resposta mínima de chat, custo de frações de centavo). Use `--skip-ai` para pular
+as chamadas aos modelos. Cada falha vem com a correção sugerida.

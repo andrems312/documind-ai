@@ -16,6 +16,18 @@ from app.storage.base import StorageError, ensure_safe_path
 log = get_logger(__name__)
 
 
+def supabase_server_headers(secret_key: str) -> dict[str, str]:
+    """Cabeçalhos de autenticação da chave privilegiada do Supabase (somente backend).
+
+    - Chave nova (`sb_secret_...`): não é um JWT, então vai só em `apikey`. Enviá-la também em
+      `Authorization: Bearer` faz a plataforma tentar validá-la como JWT e rejeitar.
+    - Chave legada (`service_role`, um JWT): `apikey` e `Authorization`, como sempre.
+    """
+    if secret_key.startswith("sb_secret_"):
+        return {"apikey": secret_key}
+    return {"Authorization": f"Bearer {secret_key}", "apikey": secret_key}
+
+
 class SupabaseStorage:
     def __init__(
         self,
@@ -29,7 +41,7 @@ class SupabaseStorage:
         self.bucket = bucket
         self._client = httpx.AsyncClient(
             base_url=f"{base_url.rstrip('/')}/storage/v1",
-            headers={"Authorization": f"Bearer {service_role_key}", "apikey": service_role_key},
+            headers=supabase_server_headers(service_role_key),
             timeout=timeout,
             transport=transport,
         )
