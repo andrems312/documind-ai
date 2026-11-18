@@ -23,9 +23,7 @@ def _to_read(folder: Folder, document_count: int) -> FolderRead:
     )
 
 
-async def _document_counts(
-    db: AsyncSession, user_id: uuid.UUID
-) -> dict[uuid.UUID, int]:
+async def _document_counts(db: AsyncSession, user_id: uuid.UUID) -> dict[uuid.UUID, int]:
     rows = await db.execute(
         select(Document.folder_id, func.count())
         .where(Document.user_id == user_id, Document.folder_id.is_not(None))
@@ -36,9 +34,7 @@ async def _document_counts(
 
 async def list_folders(db: AsyncSession, user_id: uuid.UUID) -> list[FolderRead]:
     folders = (
-        await db.scalars(
-            select(Folder).where(Folder.user_id == user_id).order_by(Folder.name)
-        )
+        await db.scalars(select(Folder).where(Folder.user_id == user_id).order_by(Folder.name))
     ).all()
     counts = await _document_counts(db, user_id)
     return [_to_read(f, counts.get(f.id, 0)) for f in folders]
@@ -64,9 +60,7 @@ async def _name_taken(
     return await db.scalar(stmt) is not None
 
 
-async def create_folder(
-    db: AsyncSession, user_id: uuid.UUID, payload: FolderCreate
-) -> FolderRead:
+async def create_folder(db: AsyncSession, user_id: uuid.UUID, payload: FolderCreate) -> FolderRead:
     if await _name_taken(db, user_id, payload.name):
         raise ConflictError("Você já tem uma pasta com esse nome.")
     folder = Folder(user_id=user_id, name=payload.name, color=payload.color)
@@ -76,9 +70,7 @@ async def create_folder(
     return _to_read(folder, 0)
 
 
-async def update_folder(
-    db: AsyncSession, folder: Folder, payload: FolderUpdate
-) -> FolderRead:
+async def update_folder(db: AsyncSession, folder: Folder, payload: FolderUpdate) -> FolderRead:
     fields = payload.model_fields_set
     if "name" in fields and payload.name is not None:
         if await _name_taken(db, folder.user_id, payload.name, exclude=folder.id):

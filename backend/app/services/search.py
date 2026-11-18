@@ -50,9 +50,7 @@ async def search(
         top_k=limit,
         min_similarity=settings.rag_min_similarity,
     )
-    db.add(
-        UsageEvent(user_id=user_id, kind=UsageKind.SEARCH, prompt_tokens=batch.prompt_tokens)
-    )
+    db.add(UsageEvent(user_id=user_id, kind=UsageKind.SEARCH, prompt_tokens=batch.prompt_tokens))
     results = [
         SearchResultItem(
             chunk_id=chunk.chunk_id,

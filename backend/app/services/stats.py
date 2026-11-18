@@ -53,9 +53,7 @@ async def overview(db: AsyncSession, user_id: uuid.UUID) -> StatsOverview:
     ) or 0
     conversations = (
         await db.scalar(
-            select(func.count())
-            .select_from(Conversation)
-            .where(Conversation.user_id == user_id)
+            select(func.count()).select_from(Conversation).where(Conversation.user_id == user_id)
         )
     ) or 0
     questions = (

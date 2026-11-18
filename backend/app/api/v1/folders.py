@@ -17,9 +17,7 @@ router = APIRouter()
     status_code=status.HTTP_201_CREATED,
     summary="Cria uma pasta",
 )
-async def create_folder(
-    payload: FolderCreate, profile: CurrentProfile, db: DbDep
-) -> FolderRead:
+async def create_folder(payload: FolderCreate, profile: CurrentProfile, db: DbDep) -> FolderRead:
     return await service.create_folder(db, profile.id, payload)
 
 
@@ -41,9 +39,7 @@ async def update_folder(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Exclui a pasta (os documentos ficam sem pasta)",
 )
-async def delete_folder(
-    folder_id: uuid.UUID, profile: CurrentProfile, db: DbDep
-) -> Response:
+async def delete_folder(folder_id: uuid.UUID, profile: CurrentProfile, db: DbDep) -> Response:
     folder = await service.get_owned(db, profile.id, folder_id)
     await service.delete_folder(db, folder)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

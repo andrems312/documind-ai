@@ -73,18 +73,14 @@ async def list_analyses(profile: CurrentProfile, db: DbDep) -> list[AnalysisList
 
 
 @router.get("/{analysis_id}", response_model=AnalysisRead, summary="Detalhe de uma análise")
-async def get_analysis(
-    analysis_id: uuid.UUID, profile: CurrentProfile, db: DbDep
-) -> AnalysisRead:
+async def get_analysis(analysis_id: uuid.UUID, profile: CurrentProfile, db: DbDep) -> AnalysisRead:
     return await service.get_detail(db, profile.id, analysis_id)
 
 
 @router.delete(
     "/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT, summary="Exclui uma análise"
 )
-async def delete_analysis(
-    analysis_id: uuid.UUID, profile: CurrentProfile, db: DbDep
-) -> Response:
+async def delete_analysis(analysis_id: uuid.UUID, profile: CurrentProfile, db: DbDep) -> Response:
     analysis = await service.get_owned(db, profile.id, analysis_id)
     await service.delete_analysis(db, analysis)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

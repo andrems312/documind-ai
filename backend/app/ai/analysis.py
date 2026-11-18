@@ -91,9 +91,7 @@ class AnalysisService:
             contents, truncated = await self._gather_contents(db, docs)
 
         titles = [title for title, _ in contents]
-        messages = build_analysis_messages(
-            _PROMPTS[analysis_type], contents, truncated=truncated
-        )
+        messages = build_analysis_messages(_PROMPTS[analysis_type], contents, truncated=truncated)
         try:
             completion = await self.chat.complete(
                 messages,
@@ -120,9 +118,7 @@ class AnalysisService:
     ) -> list[Document]:
         rows = (
             await db.scalars(
-                select(Document).where(
-                    Document.user_id == user_id, Document.id.in_(document_ids)
-                )
+                select(Document).where(Document.user_id == user_id, Document.id.in_(document_ids))
             )
         ).all()
         by_id = {d.id: d for d in rows}

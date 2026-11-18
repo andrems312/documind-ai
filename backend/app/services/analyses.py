@@ -14,9 +14,7 @@ from app.schemas.analyses import AnalysisListItem, AnalysisRead
 REMOVED_TITLE = "Documento removido"
 
 
-async def _titles_for(
-    db: AsyncSession, document_ids: list[uuid.UUID]
-) -> list[str]:
+async def _titles_for(db: AsyncSession, document_ids: list[uuid.UUID]) -> list[str]:
     if not document_ids:
         return []
     rows = await db.execute(
@@ -42,9 +40,7 @@ def _to_read(analysis: Analysis, titles: list[str]) -> AnalysisRead:
 async def list_analyses(db: AsyncSession, user_id: uuid.UUID) -> list[AnalysisListItem]:
     analyses = (
         await db.scalars(
-            select(Analysis)
-            .where(Analysis.user_id == user_id)
-            .order_by(Analysis.created_at.desc())
+            select(Analysis).where(Analysis.user_id == user_id).order_by(Analysis.created_at.desc())
         )
     ).all()
     all_ids = list({d for a in analyses for d in a.document_ids})
