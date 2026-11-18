@@ -1,6 +1,2 @@
-# Normaliza quebras de linha para LF no repositório (evita diffs falsos entre Windows e Linux/CI).
-* text=auto eol=lf
-*.png binary
-*.jpg binary
-*.ico binary
-*.pdf binary
+# Scripts de shell sempre com LF, para rodarem em imagens Linux mesmo commitados no Windows.
+*.sh text eol=lf

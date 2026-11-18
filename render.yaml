@@ -11,10 +11,10 @@ services:
     dockerContext: ./backend
     plan: free
     healthCheckPath: /api/v1/health
-    # Free tier não suporta preDeployCommand: rodamos as migrações no start do container
-    # (idempotente) e subimos a API na porta que o Render injeta via $PORT. Caminhos absolutos
-    # do venv porque o Render não garante o PATH da imagem ao rodar o dockerCommand.
-    dockerCommand: sh -c "/app/.venv/bin/alembic upgrade head && /app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    # Free tier não suporta preDeployCommand: as migrações rodam no start, via backend/start.sh
+    # (idempotente). Chamamos `sh /app/start.sh` sem aspas/&&/$ porque o Render não processa o
+    # dockerCommand através de um shell — o script é que trata disso e sobe a API na porta $PORT.
+    dockerCommand: sh /app/start.sh
     envVars:
       - key: APP_ENV
         value: production
