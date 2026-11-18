@@ -170,6 +170,10 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if settings.is_production:
+            # Só em produção (sempre atrás de HTTPS); evita fixar HSTS em http://localhost.
+            response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
         if request.url.path not in {"/api/v1/health"}:
             log.info("request", status=response.status_code, duration_ms=duration_ms)
         return response

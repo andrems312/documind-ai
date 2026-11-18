@@ -62,3 +62,18 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
           NEXT_PUBLIC_API_URL: http://localhost:8000
+
+  # Garante que as imagens de deploy continuam construíveis (deploy reproduzível).
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build da imagem do backend
+        run: docker build -t documind-api ./backend
+      - name: Build da imagem do frontend
+        run: |
+          docker build -t documind-web \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=ci-placeholder \
+            --build-arg NEXT_PUBLIC_API_URL=http://localhost:8000 \
+            ./frontend

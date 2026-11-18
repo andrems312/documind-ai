@@ -11,6 +11,14 @@ página de origem citada.
 > Próxima: FASE 5 (testes completos, revisão de segurança, deploy).
 > Veja o roadmap completo em [docs/FASE1-PLANEJAMENTO.md](docs/FASE1-PLANEJAMENTO.md).
 
+## Telas
+
+| Dashboard | Documentos e pastas |
+|---|---|
+| ![Dashboard com estatísticas e gráfico de consumo](docs/screenshots/dashboard.jpg) | ![Biblioteca de documentos com pastas](docs/screenshots/documents.jpg) |
+
+![Busca semântica com trechos ranqueados por afinidade](docs/screenshots/search.jpg)
+
 ## Como funciona
 
 ```
@@ -104,6 +112,32 @@ Sem Docker (inclusive no Windows), o pacote `pgserver` sobe um Postgres com pgve
 
 `docker compose up --build` sobe Postgres com pgvector, a API (aplicando migrações) e o frontend.
 A autenticação continua no Supabase; preencha o `.env` antes.
+
+## Deploy em produção
+
+Arquitetura de deploy: **frontend na [Vercel](https://vercel.com)** (build nativo do Next),
+**backend no [Render](https://render.com)** (imagem Docker) e **Supabase** para banco, auth e
+storage. Render pode ser trocado por Fly.io ou Railway usando o mesmo `backend/Dockerfile`.
+
+**1. Supabase** — crie o projeto e configure conforme [supabase/README.md](supabase/README.md):
+chaves, bucket (`storage.sql`) e, em **Authentication → URL Configuration**, use a URL de produção
+do frontend como *Site URL* e adicione `<url>/auth/callback` em *Redirect URLs*.
+
+**2. Backend no Render** — "New +" → **Blueprint**, apontando para este repositório: o
+[`render.yaml`](render.yaml) cria o serviço, aplica as migrações no *pre-deploy* e expõe o
+health check. Defina no painel as variáveis marcadas como `sync: false` (`DATABASE_URL`,
+chaves do Supabase, `OPENROUTER_API_KEY`, e `CORS_ORIGINS`/`APP_PUBLIC_URL` com a URL da Vercel).
+
+**3. Frontend na Vercel** — importe o repositório com **Root Directory = `frontend`**. A Vercel
+detecta o Next automaticamente. Defina as variáveis `NEXT_PUBLIC_SUPABASE_URL`,
+`NEXT_PUBLIC_SUPABASE_ANON_KEY` e `NEXT_PUBLIC_API_URL` (a URL pública do backend no Render).
+
+**4. Ligar as pontas** — com a URL da Vercel conhecida, ajuste `CORS_ORIGINS` e `APP_PUBLIC_URL`
+no Render e o *Site URL*/*Redirect URL* no Supabase. Faça um smoke test: cadastro → confirmação
+por e-mail → login → upload de um PDF → pergunta no chat com citações.
+
+> Dica: o CI (`.github/workflows/ci.yml`) já constrói as duas imagens Docker a cada push, então
+> uma falha de build aparece antes do deploy.
 
 ## Segurança
 

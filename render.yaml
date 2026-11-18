@@ -1,0 +1,39 @@
+# Blueprint do Render para o backend do DocuMind AI (deploy via Docker).
+# O frontend vai para a Vercel (veja o README); banco, auth e storage ficam no Supabase.
+#
+# Como usar: no Render, "New +" → "Blueprint" apontando para este repositório.
+# As variáveis com `sync: false` são definidas (uma vez) no painel do Render — nunca no git.
+services:
+  - type: web
+    name: documind-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/v1/health
+    # Aplica as migrações do Alembic antes de cada deploy entrar no ar.
+    preDeployCommand: alembic upgrade head
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: LOG_JSON
+        value: "true"
+      - key: STORAGE_BACKEND
+        value: supabase
+      # Secrets e valores por ambiente — defina no painel do Render:
+      - key: DATABASE_URL # Supabase → Database → Connection string (Session/Transaction pooler)
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY # chave publishable (sb_publishable_...)
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY # chave secret (sb_secret_...) — só no backend
+        sync: false
+      - key: SUPABASE_JWT_SECRET # opcional; vazio = valida via JWKS
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: CORS_ORIGINS # a URL do frontend na Vercel, ex.: https://documind.vercel.app
+        sync: false
+      - key: APP_PUBLIC_URL # a mesma URL do frontend
+        sync: false
