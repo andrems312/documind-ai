@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app.ai.analysis import AnalysisService
 from app.ai.openrouter import OpenRouterClient
 from app.ai.providers import ChatProvider, EmbeddingProvider
 from app.ai.rag import RagService
@@ -28,7 +29,7 @@ from app.processing.jobs import JobRunner
 from app.processing.pipeline import PipelineContext
 from app.storage.base import StorageBackend, build_storage
 
-API_VERSION = "0.2.0"
+API_VERSION = "0.3.0"
 log = get_logger("documind")
 
 
@@ -122,6 +123,11 @@ def create_app(
         settings=settings,
         session_factory=app.state.session_factory,
         embedder=embedder,
+        chat=chat,
+    )
+    app.state.analysis = AnalysisService(
+        settings=settings,
+        session_factory=app.state.session_factory,
         chat=chat,
     )
 

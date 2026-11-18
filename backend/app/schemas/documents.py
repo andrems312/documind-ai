@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator
 
 from app.db.models import DocumentStatus
 
@@ -36,7 +36,19 @@ class DocumentRead(BaseModel):
 
 
 class DocumentUpdate(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    # Enviar folder_id: null move o documento para fora de qualquer pasta.
+    folder_id: uuid.UUID | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _strip_title(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("O título não pode ficar vazio.")
+        return stripped
 
 
 class DocumentPageRead(BaseModel):

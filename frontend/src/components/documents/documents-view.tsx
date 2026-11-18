@@ -5,17 +5,20 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { DocumentProgress, DocumentStatusBadge } from "@/components/documents/document-status";
+import { FolderBar } from "@/components/documents/folder-bar";
 import { UploadDropzone } from "@/components/documents/upload-dropzone";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDocuments } from "@/hooks/use-documents";
+import { useFolders } from "@/hooks/use-folders";
 import { formatBytes, formatRelative, pluralize } from "@/lib/utils/format";
 import type { DocumentItem } from "@/types/api";
 
-function DocumentRow({ document }: { document: DocumentItem }) {
+function DocumentRow({ document, folderName }: { document: DocumentItem; folderName?: string }) {
   return (
     <li className="flex flex-col gap-3 rounded-lg border border-border bg-surface p-4 shadow-card transition-colors hover:border-border-strong sm:flex-row sm:items-center animate-fade-in">
       <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -31,6 +34,7 @@ function DocumentRow({ document }: { document: DocumentItem }) {
               {document.title}
             </Link>
             <DocumentStatusBadge status={document.status} />
+            {folderName && <Badge variant="neutral">{folderName}</Badge>}
           </div>
           <p className="text-xs text-fg-subtle">
             {document.page_count ? pluralize(document.page_count, "página", "páginas") : "—"} ·{" "}
@@ -66,13 +70,21 @@ function ListSkeleton() {
 
 export function DocumentsView() {
   const documents = useDocuments();
+  const folders = useFolders();
   const [query, setQuery] = useState("");
+  const [folder, setFolder] = useState<string | null>(null);
+
+  const folderName = useMemo(() => {
+    const map = new Map((folders.data ?? []).map((f) => [f.id, f.name]));
+    return (id: string | null) => (id ? map.get(id) : undefined);
+  }, [folders.data]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("pt-BR");
-    const list = documents.data ?? [];
+    let list = documents.data ?? [];
+    if (folder !== null) list = list.filter((d) => d.folder_id === folder);
     return term ? list.filter((d) => d.title.toLocaleLowerCase("pt-BR").includes(term)) : list;
-  }, [documents.data, query]);
+  }, [documents.data, query, folder]);
 
   const total = documents.data?.length ?? 0;
 
@@ -88,9 +100,10 @@ export function DocumentsView() {
       </section>
 
       <section aria-labelledby="library-heading">
+        {total > 0 && <FolderBar active={folder} onChange={setFolder} />}
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 id="library-heading" className="text-sm font-semibold text-fg-muted">
-            Biblioteca {total > 0 && <span className="font-normal">({total})</span>}
+            Biblioteca {total > 0 && <span className="font-normal">({filtered.length})</span>}
           </h2>
           {total > 0 && (
             <div className="relative sm:w-72">
@@ -125,7 +138,11 @@ export function DocumentsView() {
         ) : (
           <ul className="space-y-3">
             {filtered.map((document) => (
-              <DocumentRow key={document.id} document={document} />
+              <DocumentRow
+                key={document.id}
+                document={document}
+                folderName={folderName(document.folder_id)}
+              />
             ))}
           </ul>
         )}

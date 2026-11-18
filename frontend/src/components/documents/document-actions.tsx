@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquarePlus, Pencil, RotateCw, Trash2 } from "lucide-react";
+import { FolderInput, MessageSquarePlus, Pencil, RotateCw, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useCreateConversation } from "@/hooks/use-conversations";
 import { useDeleteDocument, useRenameDocument, useReprocessDocument } from "@/hooks/use-documents";
+import { useFolders, useMoveDocument } from "@/hooks/use-folders";
 import type { DocumentItem } from "@/types/api";
 
 /** Cria uma conversa sobre um único documento e navega até ela. */
@@ -36,11 +37,14 @@ interface DocumentActionsProps {
 }
 
 export function DocumentActions({ document, onDeleted, size = "sm" }: DocumentActionsProps) {
-  const [dialog, setDialog] = useState<"rename" | "delete" | null>(null);
+  const [dialog, setDialog] = useState<"rename" | "delete" | "move" | null>(null);
   const [title, setTitle] = useState(document.title);
+  const [folderId, setFolderId] = useState<string>(document.folder_id ?? "");
   const rename = useRenameDocument();
   const reprocess = useReprocessDocument();
   const remove = useDeleteDocument();
+  const move = useMoveDocument();
+  const folders = useFolders();
   const chat = useStartChat();
 
   const canReprocess = document.status === "ready" || document.status === "failed";
@@ -63,6 +67,18 @@ export function DocumentActions({ document, onDeleted, size = "sm" }: DocumentAc
         }}
       >
         <Pencil />
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label={`Mover ${document.title} para uma pasta`}
+        title="Mover para pasta"
+        onClick={() => {
+          setFolderId(document.folder_id ?? "");
+          setDialog("move");
+        }}
+      >
+        <FolderInput />
       </Button>
       {canReprocess && (
         <Button
@@ -138,6 +154,53 @@ export function DocumentActions({ document, onDeleted, size = "sm" }: DocumentAc
             />
           </Field>
         </form>
+      </Dialog>
+
+      <Dialog
+        open={dialog === "move"}
+        onClose={() => setDialog(null)}
+        title="Mover para pasta"
+        description="Escolha uma pasta ou remova o documento de qualquer pasta."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setDialog(null)}>
+              Cancelar
+            </Button>
+            <Button
+              loading={move.isPending}
+              onClick={() =>
+                move.mutate(
+                  { id: document.id, folderId: folderId || null },
+                  {
+                    onSuccess: () => {
+                      toast.success("Documento movido.");
+                      setDialog(null);
+                    },
+                    onError: (error) => toast.error(error.message),
+                  },
+                )
+              }
+            >
+              Mover
+            </Button>
+          </>
+        }
+      >
+        <Field label="Pasta" htmlFor={`folder-${document.id}`}>
+          <select
+            id={`folder-${document.id}`}
+            value={folderId}
+            onChange={(event) => setFolderId(event.target.value)}
+            className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-fg outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          >
+            <option value="">Sem pasta</option>
+            {(folders.data ?? []).map((folder) => (
+              <option key={folder.id} value={folder.id}>
+                {folder.name}
+              </option>
+            ))}
+          </select>
+        </Field>
       </Dialog>
 
       <Dialog

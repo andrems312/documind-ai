@@ -60,8 +60,11 @@ async def list_documents(
     db: DbDep,
     status_filter: Annotated[DocumentStatus | None, Query(alias="status")] = None,
     q: Annotated[str | None, Query(max_length=120)] = None,
+    folder_id: Annotated[uuid.UUID | None, Query()] = None,
 ) -> list[DocumentRead]:
-    documents = await service.list_documents(db, profile.id, status=status_filter, query=q)
+    documents = await service.list_documents(
+        db, profile.id, status=status_filter, query=q, folder_id=folder_id
+    )
     return [DocumentRead.model_validate(d) for d in documents]
 
 
@@ -70,12 +73,16 @@ async def get_document(document_id: uuid.UUID, profile: CurrentProfile, db: DbDe
     return DocumentRead.model_validate(await service.get_document(db, profile.id, document_id))
 
 
-@router.patch("/{document_id}", response_model=DocumentRead, summary="Renomeia o documento")
+@router.patch(
+    "/{document_id}",
+    response_model=DocumentRead,
+    summary="Renomeia o documento ou move para uma pasta",
+)
 async def update_document(
     document_id: uuid.UUID, payload: DocumentUpdate, profile: CurrentProfile, db: DbDep
 ) -> DocumentRead:
     document = await service.get_document(db, profile.id, document_id)
-    return DocumentRead.model_validate(await service.rename_document(db, document, payload.title))
+    return DocumentRead.model_validate(await service.update_document(db, document, payload))
 
 
 @router.delete(

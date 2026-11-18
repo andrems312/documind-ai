@@ -10,6 +10,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from app.ai.analysis import AnalysisService
+from app.ai.providers import EmbeddingProvider
 from app.ai.rag import RagService
 from app.core.config import Settings
 from app.core.exceptions import UnauthorizedError
@@ -69,6 +71,14 @@ def get_rag(request: Request) -> RagService:
     return request.app.state.rag  # type: ignore[no-any-return]
 
 
+def get_analysis(request: Request) -> AnalysisService:
+    return request.app.state.analysis  # type: ignore[no-any-return]
+
+
+def get_embedder(request: Request) -> EmbeddingProvider:
+    return request.app.state.embedder  # type: ignore[no-any-return]
+
+
 SettingsDep = Annotated[Settings, Depends(get_settings_dep)]
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 CurrentUser = Annotated[AuthUser, Depends(get_current_user)]
@@ -76,3 +86,5 @@ CurrentProfile = Annotated[Profile, Depends(get_current_profile)]
 StorageDep = Annotated[StorageBackend, Depends(get_storage)]
 JobRunnerDep = Annotated[JobRunner, Depends(get_job_runner)]
 RagDep = Annotated[RagService, Depends(get_rag)]
+AnalysisDep = Annotated[AnalysisService, Depends(get_analysis)]
+EmbedderDep = Annotated[EmbeddingProvider, Depends(get_embedder)]

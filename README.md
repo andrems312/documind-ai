@@ -4,9 +4,11 @@ Plataforma SaaS para conversar com documentos PDF usando **RAG (Retrieval-Augmen
 as respostas são geradas apenas a partir de trechos recuperados dos seus arquivos e vêm com a
 página de origem citada.
 
-> Status: **FASE 3 (núcleo) concluída** — upload, extração com PyMuPDF, chunking, embeddings,
-> pgvector, busca híbrida, RAG com streaming e citações por página.
-> Próxima: FASE 4 (dashboard de uso, pastas, resumos, comparação, busca semântica, exportação).
+> Status: **FASE 4 (experiência) concluída** — dashboard com estatísticas e consumo, pastas,
+> resumos, extração de informações-chave, comparação de documentos, busca semântica global e
+> exportação (Markdown/PDF), sobre o núcleo RAG da FASE 3 (upload, PyMuPDF, chunking, embeddings,
+> pgvector, busca híbrida, chat com streaming e citações por página).
+> Próxima: FASE 5 (testes completos, revisão de segurança, deploy).
 > Veja o roadmap completo em [docs/FASE1-PLANEJAMENTO.md](docs/FASE1-PLANEJAMENTO.md).
 
 ## Como funciona

@@ -12,8 +12,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.core.exceptions import ConflictError, NotFoundError
 from app.core.logging import get_logger
-from app.db.models import Document, DocumentPage, DocumentStatus, JobStatus, ProcessingJob
+from app.db.models import Document, DocumentPage, DocumentStatus, Folder, JobStatus, ProcessingJob
 from app.processing.validator import validate_pdf
+from app.schemas.documents import DocumentUpdate
 from app.storage.base import StorageBackend, object_path
 
 log = get_logger(__name__)
@@ -82,10 +83,13 @@ async def list_documents(
     *,
     status: DocumentStatus | None = None,
     query: str | None = None,
+    folder_id: uuid.UUID | None = None,
 ) -> list[Document]:
     stmt = select(Document).where(Document.user_id == user_id)
     if status is not None:
         stmt = stmt.where(Document.status == status)
+    if folder_id is not None:
+        stmt = stmt.where(Document.folder_id == folder_id)
     if query:
         stmt = stmt.where(Document.title.ilike(f"%{query.strip()}%"))
     return list((await db.scalars(stmt.order_by(Document.created_at.desc()))).all())
@@ -101,8 +105,22 @@ async def get_document(db: AsyncSession, user_id: uuid.UUID, document_id: uuid.U
     return document
 
 
-async def rename_document(db: AsyncSession, document: Document, title: str) -> Document:
-    document.title = title.strip()
+async def update_document(
+    db: AsyncSession, document: Document, payload: DocumentUpdate
+) -> Document:
+    fields = payload.model_fields_set
+    if "title" in fields and payload.title is not None:
+        document.title = payload.title
+    if "folder_id" in fields:
+        if payload.folder_id is not None:
+            owns_folder = await db.scalar(
+                select(Folder.id).where(
+                    Folder.id == payload.folder_id, Folder.user_id == document.user_id
+                )
+            )
+            if owns_folder is None:
+                raise NotFoundError("Pasta não encontrada.")
+        document.folder_id = payload.folder_id
     await db.flush()
     await db.refresh(document)
     return document

@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -84,11 +84,34 @@ async def client(app) -> AsyncIterator[AsyncClient]:
 
 # --------------------------------------------------------------------------- integração
 @pytest.fixture(scope="session")
-def migrated_db_url() -> str:
-    """Recria o schema do banco de teste e aplica todas as migrações (uma vez por sessão)."""
+def test_database_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
+    """URL do Postgres de teste: `TEST_DATABASE_URL` se definida, senão um `pgserver` embutido.
+
+    O `pgserver` (Postgres + pgvector via pip) permite rodar os testes de integração localmente
+    sem Docker, inclusive no Windows. É iniciado uma vez por sessão e encerrado ao final.
+    """
     url = os.environ.get("TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("TEST_DATABASE_URL não definida (testes de integração com Postgres)")
+    if url:
+        yield url
+        return
+    try:
+        import pgserver
+    except ModuleNotFoundError:
+        pytest.skip("TEST_DATABASE_URL não definida e pgserver indisponível")
+
+    pgdata = tmp_path_factory.mktemp("pgdata")
+    server = pgserver.get_server(pgdata)
+    try:
+        server.psql("CREATE DATABASE documind_test")
+        yield server.get_uri(database="documind_test")
+    finally:
+        server.cleanup()
+
+
+@pytest.fixture(scope="session")
+def migrated_db_url(test_database_url: str) -> str:
+    """Recria o schema do banco de teste e aplica todas as migrações (uma vez por sessão)."""
+    url = test_database_url
     database_name = url.rsplit("/", 1)[-1].split("?", 1)[0]
     if "test" not in database_name.lower():
         pytest.exit(

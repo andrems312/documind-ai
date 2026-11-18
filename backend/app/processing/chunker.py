@@ -46,6 +46,14 @@ def count_tokens(text: str) -> int:
     return len(_encoding().encode(text, disallowed_special=()))
 
 
+def truncate_to_tokens(text: str, max_tokens: int) -> tuple[str, bool]:
+    """Corta o texto para no máximo `max_tokens`. Devolve (texto, foi_truncado)."""
+    tokens = _encoding().encode(text, disallowed_special=())
+    if len(tokens) <= max_tokens:
+        return text, False
+    return _encoding().decode(tokens[:max_tokens]).strip(), True
+
+
 def _split_by_tokens(text: str, max_tokens: int) -> list[str]:
     tokens = _encoding().encode(text, disallowed_special=())
     return [

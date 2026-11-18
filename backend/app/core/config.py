@@ -72,6 +72,11 @@ class Settings(BaseSettings):
     rag_context_tokens: int = Field(default=6000, ge=500)
     rag_history_messages: int = Field(default=6, ge=0, le=30)
 
+    # Análises (resumo, extração, comparação)
+    analysis_input_tokens: int = Field(default=12000, ge=1000)  # orçamento do texto enviado
+    analysis_max_tokens: int = Field(default=1500, ge=256)  # tamanho da resposta
+    analysis_max_documents: int = Field(default=4, ge=2, le=10)  # limite da comparação
+
     # Processamento em segundo plano
     worker_concurrency: int = Field(default=2, ge=1, le=16)
     job_max_attempts: int = Field(default=3, ge=1, le=10)

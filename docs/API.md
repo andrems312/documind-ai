@@ -22,7 +22,7 @@ Toda resposta de erro segue o mesmo envelope:
 | 409 | `conflict` | PDF já enviado pelo mesmo usuário (`details.document_id`), reprocessamento em andamento |
 | 413 | `payload_too_large` | Arquivo acima de `MAX_UPLOAD_MB` |
 | 422 | `unprocessable` / `validation_error` | PDF inválido, protegido por senha, páginas demais, dados inválidos |
-| 429 | `rate_limited` | Muitas requisições (upload e perguntas: 30/min por usuário) |
+| 429 | `rate_limited` | Muitas requisições (upload, perguntas e busca: 30/min; análises: 20/min, por usuário) |
 | 502 | `external_service_error` / `storage_error` | Falha no OpenRouter ou no Storage |
 
 ## Endpoints
@@ -31,10 +31,13 @@ Toda resposta de erro segue o mesmo envelope:
 |---|---|---|
 | GET | `/health` | Status da API e do banco; indica se OpenRouter e Storage estão configurados |
 | GET / PATCH | `/me` | Perfil do usuário (criado no primeiro acesso) |
+| GET | `/stats/overview` | Métricas do dashboard: documentos por status, páginas, trechos, conversas, perguntas, análises, tokens e uso diário (14 dias) |
+| GET / POST | `/folders` | Lista (com contagem de documentos) / cria `{"name": "...", "color": "#RRGGBB"}` |
+| PATCH / DELETE | `/folders/{id}` | Renomeia/recolore / exclui (os documentos ficam sem pasta) |
 | POST | `/documents` | Upload multipart (`file`). Valida, grava no storage e agenda o processamento. `201` |
-| GET | `/documents?status=&q=` | Lista do usuário, mais recentes primeiro |
+| GET | `/documents?status=&q=&folder_id=` | Lista do usuário, mais recentes primeiro |
 | GET | `/documents/{id}` | Detalhe com `status`, `processed_pages`, `progress` (0–1) e `error_message` |
-| PATCH | `/documents/{id}` | Renomeia (`{"title": "..."}`) |
+| PATCH | `/documents/{id}` | Renomeia (`{"title": "..."}`) e/ou move (`{"folder_id": "..."\|null}`) |
 | DELETE | `/documents/{id}` | Remove registro, páginas, chunks, citações e o arquivo. `204` |
 | POST | `/documents/{id}/reprocess` | Reexecuta extração, chunking e embeddings. `202` |
 | GET | `/documents/{id}/pages/{n}` | Texto extraído da página `n` |
@@ -44,6 +47,11 @@ Toda resposta de erro segue o mesmo envelope:
 | GET | `/conversations/{id}` | Histórico com mensagens e citações |
 | PATCH / DELETE | `/conversations/{id}` | Renomeia / exclui |
 | POST | `/conversations/{id}/messages` | Pergunta `{"content": "..."}` com resposta em **SSE** |
+| POST | `/analyses/summary` · `/key-info` · `/comparison` | Gera a análise de `{"document_ids": [...]}` (comparação exige ≥ 2). `201` |
+| GET | `/analyses` | Lista as análises salvas (sem o conteúdo) |
+| GET / DELETE | `/analyses/{id}` | Detalhe (com conteúdo) / exclui |
+| GET | `/analyses/{id}/export?format=md\|pdf` | Baixa a análise em Markdown ou PDF |
+| GET | `/search?q=&folder_id=&limit=` | Busca semântica híbrida em toda a biblioteca (ou numa pasta) |
 
 ## Status do documento
 

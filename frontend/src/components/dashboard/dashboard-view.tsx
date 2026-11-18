@@ -1,8 +1,9 @@
 "use client";
 
-import { Activity, FileText, Layers, MessageSquareText, Upload } from "lucide-react";
+import { Activity, FileText, Layers, MessageSquareText, Sparkles, Upload, Zap } from "lucide-react";
 import Link from "next/link";
 import { DocumentStatusBadge } from "@/components/documents/document-status";
+import { UsageChart } from "@/components/dashboard/usage-chart";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alert } from "@/components/ui/alert";
@@ -10,10 +11,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useConversations } from "@/hooks/use-conversations";
 import { useDocuments } from "@/hooks/use-documents";
 import { useApiHealth, useMe } from "@/hooks/use-me";
-import { formatRelative, pluralize } from "@/lib/utils/format";
+import { useStats } from "@/hooks/use-stats";
+import { formatCompact, formatNumber, formatRelative, pluralize } from "@/lib/utils/format";
 
 function greeting(): string {
   const hour = new Date().getHours();
@@ -57,13 +58,14 @@ function StatCard({
 export function DashboardView() {
   const me = useMe();
   const health = useApiHealth();
+  const stats = useStats();
   const documents = useDocuments();
-  const conversations = useConversations();
 
+  const s = stats.data;
   const docs = documents.data ?? [];
-  const ready = docs.filter((d) => d.status === "ready");
-  const processing = docs.filter((d) => d.status === "uploaded" || d.status === "processing");
-  const pages = ready.reduce((sum, d) => sum + (d.page_count ?? 0), 0);
+  const tokens = s ? s.prompt_tokens + s.completion_tokens : 0;
+  const processing = s?.documents.processing ?? 0;
+  const ready = s?.documents.ready ?? 0;
 
   return (
     <>
@@ -94,24 +96,54 @@ export function DashboardView() {
         <StatCard
           icon={FileText}
           label="Documentos"
-          value={docs.length}
-          hint={processing.length ? `${processing.length} em processamento` : `${ready.length} prontos para consulta`}
-          loading={documents.isPending}
+          value={s?.documents.total ?? 0}
+          hint={
+            processing
+              ? `${pluralize(processing, "em processamento", "em processamento")}`
+              : `${pluralize(ready, "pronto", "prontos")} para consulta`
+          }
+          loading={stats.isPending}
         />
         <StatCard
           icon={Layers}
           label="Páginas indexadas"
-          value={pages}
-          hint="Disponíveis para busca e citação"
-          loading={documents.isPending}
+          value={formatNumber(s?.pages_indexed ?? 0)}
+          hint={`${formatNumber(s?.chunks ?? 0)} trechos para busca e citação`}
+          loading={stats.isPending}
         />
         <StatCard
           icon={MessageSquareText}
           label="Conversas"
-          value={conversations.data?.length ?? 0}
-          hint="Histórico salvo com as fontes"
-          loading={conversations.isPending}
+          value={s?.conversations ?? 0}
+          hint={`${pluralize(s?.questions ?? 0, "pergunta", "perguntas")} respondidas`}
+          loading={stats.isPending}
         />
+        <StatCard
+          icon={Zap}
+          label="Tokens usados"
+          value={formatCompact(tokens)}
+          hint={`${pluralize(s?.analyses ?? 0, "análise", "análises")} geradas`}
+          loading={stats.isPending}
+        />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm font-medium text-fg-muted">
+              <Activity className="size-4" /> Consumo recente
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {stats.isPending ? (
+              <Skeleton className="h-40 w-full" />
+            ) : s ? (
+              <UsageChart data={s.daily_usage} />
+            ) : (
+              <p className="text-sm text-fg-muted">Sem dados de uso ainda.</p>
+            )}
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm font-medium text-fg-muted">
@@ -193,6 +225,10 @@ export function DashboardView() {
             ))}
           </ul>
         )}
+        <p className="mt-6 flex items-center gap-2 text-xs text-fg-subtle">
+          <Sparkles className="size-3.5" /> Dica: gere resumos e extraia informações-chave a partir de
+          qualquer documento pronto.
+        </p>
       </section>
     </>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { AnalysisPanel } from "@/components/analyses/analysis-panel";
 import { DocumentActions } from "@/components/documents/document-actions";
 import { DocumentProgress, DocumentStatusBadge } from "@/components/documents/document-status";
 import { EmptyState } from "@/components/layout/empty-state";
@@ -146,6 +147,12 @@ export function DocumentDetailView() {
         <Card className="mb-6 p-5">
           <DocumentProgress document={doc} />
         </Card>
+      )}
+
+      {ready && (
+        <div className="mb-6">
+          <AnalysisPanel documentId={id} />
+        </div>
       )}
 
       {ready && (

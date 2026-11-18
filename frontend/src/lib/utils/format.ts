@@ -38,3 +38,26 @@ export function formatRelative(iso: string, now: Date = new Date()): string {
 export function pluralize(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
+
+const numberFormatter = new Intl.NumberFormat("pt-BR");
+const compactFormatter = new Intl.NumberFormat("pt-BR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+export function formatNumber(value: number): string {
+  return numberFormatter.format(value);
+}
+
+/** Formata números grandes de forma compacta (ex.: 12.500 → "12,5 mil"). */
+export function formatCompact(value: number): string {
+  return value < 1000 ? String(value) : compactFormatter.format(value);
+}
+
+export function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
