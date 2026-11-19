@@ -4,11 +4,26 @@ Plataforma SaaS para conversar com documentos PDF usando **RAG (Retrieval-Augmen
 as respostas são geradas apenas a partir de trechos recuperados dos seus arquivos e vêm com a
 página de origem citada.
 
-> Status: **FASE 4 (experiência) concluída** — dashboard com estatísticas e consumo, pastas,
-> resumos, extração de informações-chave, comparação de documentos, busca semântica global e
-> exportação (Markdown/PDF), sobre o núcleo RAG da FASE 3 (upload, PyMuPDF, chunking, embeddings,
-> pgvector, busca híbrida, chat com streaming e citações por página).
-> Próxima: FASE 5 (testes completos, revisão de segurança, deploy).
+[![CI](https://github.com/andrems312/documind-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/andrems312/documind-ai/actions/workflows/ci.yml)
+[![Demo ao vivo](https://img.shields.io/badge/demo-ao%20vivo-7C6CF6?logo=vercel&logoColor=white)](https://documind-ai-five-pied.vercel.app)
+![Next.js 15](https://img.shields.io/badge/Next.js-15-black?logo=next.js)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)
+![pgvector](https://img.shields.io/badge/pgvector-HNSW-4169E1?logo=postgresql&logoColor=white)
+
+### ▶ Demo ao vivo: **https://documind-ai-five-pied.vercel.app**
+
+> Hospedado em plano gratuito — a **primeira** requisição após um período ocioso pode levar ~50s
+> enquanto o backend "acorda" (cold start do Render). As seguintes são instantâneas.
+
+**Destaques técnicos:** busca **híbrida** (vetorial pgvector + full-text em português, fundidas por
+RRF) · respostas em **streaming** (SSE) com **citação de página** e abstenção quando não há base ·
+pipeline de processamento **assíncrono e durável** · isolamento de usuários em **três camadas**
+(aplicação + RLS + storage), com [revisão de segurança](SECURITY.md) documentada · **147 testes**
+(backend + frontend) e CI que constrói as imagens Docker.
+
+> Status: **FASE 5 (finalização) concluída** — suíte de testes ampliada, revisão de segurança
+> documentada ([SECURITY.md](SECURITY.md)) e **deploy em produção** (Vercel + Render + Supabase),
+> sobre as fases anteriores (fundação, núcleo RAG e experiência). Projeto entregue de ponta a ponta.
 > Veja o roadmap completo em [docs/FASE1-PLANEJAMENTO.md](docs/FASE1-PLANEJAMENTO.md).
 
 ## Telas
